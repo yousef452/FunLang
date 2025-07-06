@@ -341,7 +341,7 @@ const TYPE_LIB : &str = r#"#include <stdio.h>
 "#;
 
 pub fn run()  {
-    let path = "test/1.ypp";
+    let path = "test/1.fun";
     let mut input = String::new();
 
     match fs::read_to_string(path) {
@@ -350,7 +350,7 @@ pub fn run()  {
         }
         
         Err(error) => {
-            println!("Error reading file: {}", error);
+            eprintln!("Error reading file: {}", error);
         }
     }
 
