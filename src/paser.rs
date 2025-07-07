@@ -268,6 +268,7 @@ impl Parser {
             }
 
 
+
             else if self.current_tok.tok_type == TokenType::IF {
                 self.advance();
                 let condition = self.expr()?;
@@ -275,19 +276,45 @@ impl Parser {
                 let then_body = self.parse()?;
                 self.expect(TokenType::RCurly)?;
 
-                let else_body = if self.current_tok.tok_type == TokenType::ELSE {
+                let mut elf_nodes = vec![];
+                let mut elf_bodies = vec![];
+                let mut else_body = None;
+
+                while self.current_tok.tok_type == TokenType::ELF {
+                    self.advance(); 
+                    let elf_condition = self.expr()?;
+                    self.expect(TokenType::LCurly)?;
+                    let elf_body = self.parse()?; 
+                    self.expect(TokenType::RCurly)?;
+
+                    elf_nodes.push(elf_condition);
+                    elf_bodies.push(elf_body);
+                }
+
+                if self.current_tok.tok_type == TokenType::ELSE {
                     self.advance();
                     self.expect(TokenType::LCurly)?;
-                    let body = self.parse()?; 
+                    let body = self.parse()?;
                     self.expect(TokenType::RCurly)?;
-                    Some(body)
-                } else {
-                    None
-                };
+                    else_body = Some(body);
+                }
 
-                return Ok(vec![Box::new(IfNode::new(condition, then_body, else_body)) as Box<dyn Node>]);
+                let node = Box::new(IfNode::new(condition, then_body, else_body, Some(elf_bodies), Some(elf_nodes))) as Box<dyn Node>;
+                statements.push(node);
+                continue;
             }
 
+            else if self.current_tok.tok_type == TokenType::WHILE {
+                self.advance();
+                let node = self.expr()?;
+                self.expect(TokenType::LCurly)?;
+                let body = self.parse()?;
+                self.expect(TokenType::RCurly)?;
+
+                let while_node= Box::new(WhileNode::new(node,body)) as Box<dyn Node>;
+                statements.push(while_node);
+                continue;
+            }
 
             else if self.current_tok.tok_type == TokenType::IDENTIFIER {
                 let name = self.current_tok.clone();

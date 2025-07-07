@@ -1,3 +1,4 @@
 fun main() {
-    print("hello");
+    let hi = "hi";
+    print("{}\n",hi);
 }

@@ -42,6 +42,8 @@ pub enum TokenType {
     NotEquals, // =!
     IF,
     ELSE,
+    ELF, // else if
+    WHILE,
 
     NONE,
     EOF
@@ -261,8 +263,14 @@ impl Scanner {
                 else if alph == String::from("if") {
                     self.push(TokenType::IF,TokenValue::NONE);
                 }
+                else if alph == String::from("elf") {
+                    self.push(TokenType::ELF,TokenValue::NONE);
+                }
                 else if alph == String::from("else") {
                     self.push(TokenType::ELSE,TokenValue::NONE);
+                }
+                else if alph == String::from("while") {
+                    self.push(TokenType::WHILE,TokenValue::NONE);
                 }
                 else {
                     self.push(TokenType::IDENTIFIER,TokenValue::IDENTIFIER(alph));

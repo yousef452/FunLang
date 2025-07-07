@@ -30,8 +30,11 @@ pub struct BinOpNode {
 
 impl BinOpNode {
     pub fn new(left: Box<dyn Node>, bin_op: Token, right: Box<dyn Node>) -> Self {
-        if !left.is_number() || !right.is_number() {
-            panic!("Expect Numbers")
+        if left.is_number() == !right.is_number() {
+            panic!("Error: left is {:?} and right is {:?}",left.get_type(),right.get_type())
+        }
+        else if left.get_type() == TokenType::STRING && (bin_op.tok_type != TokenType::EqualsEquals && bin_op.tok_type != TokenType::NotEquals) {
+            panic!("Error: you can't do {:?} to {:?}",bin_op.tok_type,left.get_type())
         }
         BinOpNode { left, bin_op, right }
     }
@@ -386,7 +389,7 @@ impl Node for VarAssignNode {
 
         return match self.node.get_type() {
            TokenType::STRING => format!("{} = (char*) GC_MALLOC(strlen({}) + 1);\nstrcpy({}, {});\n",name_str,self.node.generate(),name_str,self.node.generate()),
-            _ => format!("{}* {} =  ({}*) GC_MALLOC(sizeof({}));\n*{} = {};\n",self.c_type(),name_str,self.c_type(),self.c_type(),name_str,self.node.generate())
+            _ => format!("*{} = {};\n",name_str,self.node.generate())
         };
 
     }
@@ -647,11 +650,13 @@ pub struct IfNode {
     node : Box<dyn Node>,
     body : Vec<Box<dyn Node>>,
     else_body : Option<Vec<Box<dyn Node>>>,
+    elf_body : Option<Vec<Vec<Box<dyn Node>>>>,
+    elf_node : Option<Vec<Box<dyn Node>>>
 }
 
 impl IfNode {
-    pub fn new(node : Box<dyn Node>, body : Vec<Box<dyn Node>>, else_body : Option<Vec<Box<dyn Node>>>) -> Self {
-        Self { node,body,else_body }
+    pub fn new(node : Box<dyn Node>, body : Vec<Box<dyn Node>>, else_body : Option<Vec<Box<dyn Node>>>, elf_body : Option<Vec<Vec<Box<dyn Node>>>>, elf_node : Option<Vec<Box<dyn Node>>>) -> Self {
+        Self { node,body,else_body,elf_body,elf_node }
     }
 }
 
@@ -661,21 +666,89 @@ impl Node for IfNode {
     }
 
     fn generate(&self) -> String {
-        let mut ge= String::new();
-        for s in &self.body {
-            ge.push_str(&s.generate());
+        let mut result = String::new();
+
+        let mut if_body = String::new();
+        for stmt in &self.body {
+            if_body.push_str(&stmt.generate());
         }
 
-        if self.else_body.is_none() {
-            return format!("if ({}) {{\n{}}}\n",self.node.generate(),ge);
+        result.push_str(&format!("if ({}) {{\n{}\n}}", self.node.generate(), if_body));
+
+        if let (Some(conditions), Some(bodies)) = (&self.elf_node, &self.elf_body) {
+            for (cond, body_group) in conditions.iter().zip(bodies) {
+                let mut body_code = String::new();
+                for stmt in body_group {
+                    body_code.push_str(&stmt.generate());
+                }
+                result.push_str(&format!(" else if ({}) {{\n{}\n}}", cond.generate(), body_code));
+            }
         }
 
-        let mut else_ge= String::new();
-        for s in self.else_body.as_ref().unwrap() {
-            else_ge.push_str(&s.generate());
+        if let Some(else_body) = &self.else_body {
+            let mut else_code = String::new();
+            for stmt in else_body {
+                else_code.push_str(&stmt.generate());
+            }
+            result.push_str(&format!(" else {{\n{}\n}}", else_code));
         }
-        format!("if ({}) {{\n{}}}\nelse {{\n{}}}",self.node.generate(),ge,else_ge)
+
+        result
     }
+
+
+    fn c_format(&self) -> String {
+        "%s".to_string()
+    }
+
+    fn is_number(&self) -> bool {
+        false
+    }
+
+    fn get_type(&self) -> TokenType {
+        TokenType::STRING
+    }
+
+    fn c_type(&self) -> String {
+        return match self.get_type() {
+            TokenType::INT => "int",
+            TokenType::FLOAT => "float",
+            TokenType::STRING => "char*",
+            _ => "int",
+        }.to_string();
+    }
+
+    fn is_pure_value(&self) -> bool {
+      true 
+    }
+}
+
+
+pub struct WhileNode{
+    node : Box<dyn Node>,
+    body : Vec<Box<dyn Node>>,
+}
+
+impl WhileNode{
+    pub fn new(node : Box<dyn Node>, body : Vec<Box<dyn Node>>) -> Self {
+        Self { node,body }
+    }
+}
+
+impl Node for WhileNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn generate(&self) -> String {
+        let mut body = String::new();
+        for stmt in &self.body {
+            body.push_str(&stmt.generate());
+        }
+
+        format!("while ({})\n {{{}}}",self.node.generate(),body)
+    }
+
 
     fn c_format(&self) -> String {
         "%s".to_string()

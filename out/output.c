@@ -4,6 +4,8 @@
 
 int main() {
 GC_INIT();
-printf("hello");
+char* hi = (char*) GC_MALLOC(strlen("hi") + 1);
+strcpy(hi, "hi");
+printf("%s\n", hi);
 return 0;
 }
